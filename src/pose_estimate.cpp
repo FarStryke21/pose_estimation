@@ -1,17 +1,17 @@
 #include <iostream>
-#include <pcl/io/ply_io.h>
+#include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
 #include <pcl/visualization/cloud_viewer.h>
 
-int main()
+int main(int argc, char** argv)
 {
     // Load the source and target point clouds
     pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
-    pcl::io::loadPLYFile("owl_test.ply", *source_cloud);
-    pcl::io::loadPLYFile("owl_test.ply", *target_cloud);
+    pcl::io::loadPCDFile("part.pcd", *source_cloud);
+    pcl::io::loadPCDFile("part_scan.pcd", *target_cloud);
 
     // Initialize the ICP object
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
