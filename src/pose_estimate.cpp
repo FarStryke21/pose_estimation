@@ -10,22 +10,30 @@
 #include <pcl/features/fpfh.h>
 #include <pcl/features/normal_3d.h>
 
+
 pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_ICP(pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud)
 {
     // ---------------------Initialize the ICP object
+    // Calculate the time required to estimate the pose
+    clock_t start, end;
+
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     icp.setInputSource(source_cloud);
     icp.setInputTarget(target_cloud);
 
     // Set termination criteria
-    // icp.setMaximumIterations(1000);
+    icp.setMaximumIterations(10);
     // icp.setTransformationEpsilon(1e-8);
     icp.setEuclideanFitnessEpsilon(1);
 
     // Align the clouds
     pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    start = clock();
     std::cout << "ICP Starting ... " << std::endl;
     icp.align(*aligned_cloud);
+
+    end = clock();
+    std::cout << "Time required : " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
 
     if (icp.hasConverged())
     {
@@ -75,7 +83,7 @@ void computeFeatures(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 
     // Use all neighbors in a sphere of radius 
-    ne.setRadiusSearch(0.2);
+    ne.setRadiusSearch(0.05);
 
     // Compute the features
     ne.compute(*normals);
@@ -88,7 +96,7 @@ void computeFeatures(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
     // Use all neighbors in a sphere of radius 0.2m
     pcl::search::KdTree<pcl::PointXYZ>::Ptr fpfh_tree(new pcl::search::KdTree<pcl::PointXYZ>);
     fpfh.setSearchMethod(fpfh_tree);
-    fpfh.setRadiusSearch(0.2);
+    fpfh.setRadiusSearch(0.05);
 
     // Compute the features
     features.reset(new pcl::PointCloud<pcl::FPFHSignature33>);
@@ -98,6 +106,7 @@ void computeFeatures(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
 // Write a function that uses SAC-IA to estimate the pose
 pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_SACIA(pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud)
 {   
+    clock_t start, end;
     // Feature estimation
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr features_source(new pcl::PointCloud<pcl::FPFHSignature33>);
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr features_target(new pcl::PointCloud<pcl::FPFHSignature33>);
@@ -119,8 +128,12 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_SACIA(pcl::PointCloud<pcl::Poi
     // Align the clouds
     pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     std::cout << "SAC-IA Starting ... " << std::endl;
+    start = clock();
     sac_ia.align(*aligned_cloud);
+    end = clock();
+    std::cout << "Time required : " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
 
+    
     if (sac_ia.hasConverged())
     {
         std::cout << "SAC-IA converged with a score of " << sac_ia.getFitnessScore() << std::endl;
@@ -136,8 +149,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_SACIA(pcl::PointCloud<pcl::Poi
 
         viewer.addPointCloud(transformed_cloud, "Transformed");
         viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "Transformed");
-        // viewer.addPointCloud(target_cloud, "Target");
-        // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "Target");
+        viewer.addPointCloud(target_cloud, "Target");
+        viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "Target");
         // viewer.addPointCloud(source_cloud, "Source");
         // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 1, "Source");
         viewer.setBackgroundColor(0.0, 0.0, 0.0);
@@ -160,20 +173,16 @@ int main(int argc, char** argv)
     pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
-    pcl::io::loadPLYFile("owl_test.ply", *source_cloud);        // Base File
-    pcl::io::loadPLYFile("owl_test.ply", *target_cloud);   // Scan File
+    pcl::io::loadPLYFile("owl_sampled.ply", *source_cloud);        // Base File
+    pcl::io::loadPLYFile("owl_sampled_modified.ply", *target_cloud);   // Scan File
     std::cout << "Loaded " << std::endl;
 
     // Create a random transformation matrix and apply it to the target cloud
     Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
     float theta = M_PI / 4; // The angle of rotation in radians
-    transform(0, 0) = cos(theta);
-    transform(0, 1) = -sin(theta);
-    transform(1, 0) = sin(theta);
-    transform(1, 1) = cos(theta);
-    transform(0, 3) = 2.5; // The translation on x axis
-    transform(1, 3) = 1.0; // The translation on y axis
-    transform(2, 3) = 0.0; // The translation on z axis
+    transform(0, 3) = 25; // The translation on x axis
+    transform(1, 3) = 10.0; // The translation on y axis
+    transform(2, 3) = 15; // The translation on z axis
     // Apply this trabsformation to the target cloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::transformPointCloud(*target_cloud, *transformed_cloud, transform);
