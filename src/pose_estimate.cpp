@@ -83,7 +83,7 @@ void computeFeatures(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 
     // Use all neighbors in a sphere of radius 
-    ne.setRadiusSearch(0.05);
+    ne.setRadiusSearch(5);
 
     // Compute the features
     ne.compute(*normals);
@@ -93,10 +93,10 @@ void computeFeatures(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
     fpfh.setInputCloud(cloud);
     fpfh.setInputNormals(normals);
 
-    // Use all neighbors in a sphere of radius 0.2m
+    // Use all neighbors in a sphere of radius
     pcl::search::KdTree<pcl::PointXYZ>::Ptr fpfh_tree(new pcl::search::KdTree<pcl::PointXYZ>);
     fpfh.setSearchMethod(fpfh_tree);
-    fpfh.setRadiusSearch(0.05);
+    fpfh.setRadiusSearch(5);
 
     // Compute the features
     features.reset(new pcl::PointCloud<pcl::FPFHSignature33>);
@@ -118,8 +118,10 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_SACIA(pcl::PointCloud<pcl::Poi
     pcl::SampleConsensusInitialAlignment<pcl::PointXYZ, pcl::PointXYZ, pcl::FPFHSignature33> sac_ia;
     sac_ia.setInputSource(source_cloud);
     sac_ia.setSourceFeatures(features_source);
+    std::cout << "Source Features : " << features_source->size() << std::endl;
     sac_ia.setInputTarget(target_cloud);
     sac_ia.setTargetFeatures(features_target);
+    std::cout << "Target Features : " << features_target->size() << std::endl;
 
     // Set the number of iterations and distance threshold
     // sac_ia.setMaximumIterations(100); // Adjust as needed
@@ -144,11 +146,11 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_SACIA(pcl::PointCloud<pcl::Poi
         viewer.addPointCloud(aligned_cloud, "Aligned");
 
         // Use the transformation matrix to transform the target cloud
-        pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::transformPointCloud(*target_cloud, *transformed_cloud, sac_ia.getFinalTransformation());
+        // pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+        // pcl::transformPointCloud(*target_cloud, *transformed_cloud, sac_ia.getFinalTransformation());
 
-        viewer.addPointCloud(transformed_cloud, "Transformed");
-        viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "Transformed");
+        // viewer.addPointCloud(transformed_cloud, "Transformed");
+        // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "Transformed");
         viewer.addPointCloud(target_cloud, "Target");
         viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "Target");
         // viewer.addPointCloud(source_cloud, "Source");
@@ -159,11 +161,16 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_SACIA(pcl::PointCloud<pcl::Poi
         {
             viewer.spinOnce();
         }
+        // Save the target cloud as a PLY file
+        pcl::io::savePLYFile("owl_aligned.ply", *aligned_cloud);
+        pcl::io::savePLYFile("owl_target.ply", *target_cloud);
     }
     else
     {
         std::cerr << "SAC-IA did not converge" << std::endl;
     }
+
+    return aligned_cloud;
 }    
 
 
@@ -174,45 +181,47 @@ int main(int argc, char** argv)
     pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
     pcl::io::loadPLYFile("owl_sampled.ply", *source_cloud);        // Base File
-    pcl::io::loadPLYFile("owl_sampled_modified.ply", *target_cloud);   // Scan File
+    pcl::io::loadPLYFile("owl_scan_1.ply", *target_cloud);   // Scan File
     std::cout << "Loaded " << std::endl;
 
     // Create a random transformation matrix and apply it to the target cloud
-    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
-    float theta = M_PI / 4; // The angle of rotation in radians
-    transform(0, 3) = 25; // The translation on x axis
-    transform(1, 3) = 10.0; // The translation on y axis
-    transform(2, 3) = 15; // The translation on z axis
-    // Apply this trabsformation to the target cloud
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::transformPointCloud(*target_cloud, *transformed_cloud, transform);
-    *target_cloud = *transformed_cloud;
-
+    // Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+    // float theta = M_PI / 4; // The angle of rotation in radians
+    // transform(0, 3) = 25; // The translation on x axis
+    // transform(1, 3) = 10; // The translation on y axis
+    // transform(2, 3) = 15; // The translation on z axis
+    // // Apply this trabsformation to the target cloud
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    // pcl::transformPointCloud(*target_cloud, *transformed_cloud, transform);
+    // *target_cloud = *transformed_cloud;
 
     // Magnify pointcloud by 1000 times
-    // float magnification_factor = 1000.0;
-    // for (size_t i = 0; i < target_cloud->points.size(); ++i) {
-    //     target_cloud->points[i].x *= magnification_factor;
-    //     target_cloud->points[i].y *= magnification_factor;
-    //     target_cloud->points[i].z *= magnification_factor;
-    // }
+    float magnification_factor = 1000.0;
+    for (size_t i = 0; i < target_cloud->points.size(); ++i) {
+        target_cloud->points[i].x *= magnification_factor;
+        target_cloud->points[i].y *= magnification_factor;
+        target_cloud->points[i].z *= magnification_factor;
+    }
+    std::cout << "Magnified " << std::endl;
 
     // ----------------------Downsample the target cloud
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_target_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    // pcl::VoxelGrid<pcl::PointXYZ> voxel_grid;
-    // voxel_grid.setInputCloud(target_cloud); 
-    // voxel_grid.setLeafSize(2, 2, 2);
-    // voxel_grid.filter(*downsampled_target_cloud);
-    // *target_cloud = *downsampled_target_cloud;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_target_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::VoxelGrid<pcl::PointXYZ> voxel_grid;
+    voxel_grid.setInputCloud(target_cloud); 
+    voxel_grid.setLeafSize(1, 1, 1);
+    voxel_grid.filter(*downsampled_target_cloud);
+    *target_cloud = *downsampled_target_cloud;
+    std::cout << "Downsampled " << std::endl;
 
-    // // Remove outliers from the target cloud
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_target_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    // pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
-    // sor.setInputCloud(target_cloud);
-    // sor.setMeanK(50);
-    // sor.setStddevMulThresh(1.0);
-    // sor.filter(*filtered_target_cloud);
-    // *target_cloud = *filtered_target_cloud;
+    // Remove outliers from the target cloud
+    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_target_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+    sor.setInputCloud(target_cloud);
+    sor.setMeanK(50);
+    sor.setStddevMulThresh(1.0);
+    sor.filter(*filtered_target_cloud);
+    *target_cloud = *filtered_target_cloud;
+    std::cout << "Filtered " << std::endl;
 
     // Call the Pose Estimate function
     // pose_estimate_ICP(source_cloud, target_cloud);
