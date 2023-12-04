@@ -11,9 +11,10 @@
 #include <pcl/features/normal_3d.h>
 
 
-pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_ICP(pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud)
+// pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_ICP(pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud)
+Eigen::Matrix4f pose_estimate_ICP(pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud)
 {
-    // ---------------------Initialize the ICP object
+    std::cout << "\nICP Starting ... " << std::endl;
     // Calculate the time required to estimate the pose
     clock_t start, end;
 
@@ -28,7 +29,6 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_ICP(pcl::PointCloud<pcl::Point
     // Align the clouds
     pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     start = clock();
-    std::cout << "ICP Starting ... " << std::endl;
     icp.align(*aligned_cloud);
 
     end = clock();
@@ -37,33 +37,13 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_ICP(pcl::PointCloud<pcl::Point
     if (icp.hasConverged())
     {
         std::cout << "ICP converged with a score of " << icp.getFitnessScore() << std::endl;
-        std::cout << "Transformation matrix:\n" << icp.getFinalTransformation() << std::endl;
-
-        // Visualize the aligned cloud
-        pcl::visualization::PCLVisualizer viewer("ICP Result");
-        viewer.addPointCloud(aligned_cloud, "Aligned");
-
-        // Use the transformation matrix to transform the target cloud
-        // pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-        // pcl::transformPointCloud(*target_cloud, *transformed_cloud, icp.getFinalTransformation());
-
-        // viewer.addPointCloud(transformed_cloud, "Transformed");
-        // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "Transformed");
-        viewer.addPointCloud(target_cloud, "Target");
-        viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "Target");
-        // viewer.addPointCloud(source_cloud, "Source");
-        // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "Source");
-        viewer.setBackgroundColor(0.0, 0.0, 0.0);
-        viewer.addCoordinateSystem(50.0);
-
-        while (!viewer.wasStopped())
-        {
-            viewer.spinOnce();
-        }
+        // std::cout << "Transformation matrix:\n" << icp.getFinalTransformation() << std::endl;
+        return icp.getFinalTransformation();
     }
     else
     {
         std::cerr << "ICP did not converge" << std::endl;
+        return Eigen::Matrix4f::Identity();
     }
 
 }
@@ -104,8 +84,9 @@ void computeFeatures(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
 }
 
 // Write a function that uses SAC-IA to estimate the pose
-pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_SACIA(pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud)
+Eigen::Matrix4f pose_estimate_SACIA(pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr target_cloud)
 {   
+    std::cout << "\nSAC-IA Starting ... " << std::endl;
     clock_t start, end;
     // Feature estimation
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr features_source(new pcl::PointCloud<pcl::FPFHSignature33>);
@@ -118,23 +99,22 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_SACIA(pcl::PointCloud<pcl::Poi
     pcl::SampleConsensusInitialAlignment<pcl::PointXYZ, pcl::PointXYZ, pcl::FPFHSignature33> sac_ia;
     sac_ia.setInputSource(source_cloud);
     sac_ia.setSourceFeatures(features_source);
-    std::cout << "Source Features : " << features_source->size() << std::endl;
+    // std::cout << "Source Features : " << features_source->size() << std::endl;
     sac_ia.setInputTarget(target_cloud);
     sac_ia.setTargetFeatures(features_target);
-    std::cout << "Target Features : " << features_target->size() << std::endl;
+    // std::cout << "Target Features : " << features_target->size() << std::endl;
 
     // Set the number of iterations and distance threshold
     // sac_ia.setMaximumIterations(500); // Adjust as needed
     // sac_ia.setDistanceThreshold(0.02); // Adjust as needed
     // sac_ia.setMaxCorrespondenceDistance(1000.0);
     // sac_ia.setMinSampleDistance (0.5);
-    std::cout << "Max Correspondence Distance : " << sac_ia.getMaxCorrespondenceDistance() << std::endl;
-    std::cout << "Min Sample Distance : " << sac_ia.getMinSampleDistance() << std::endl;
-    std::cout << "Max Iterations : " << sac_ia.getMaximumIterations() << std::endl;
+    // std::cout << "Max Correspondence Distance : " << sac_ia.getMaxCorrespondenceDistance() << std::endl;
+    // std::cout << "Min Sample Distance : " << sac_ia.getMinSampleDistance() << std::endl;
+    // std::cout << "Max Iterations : " << sac_ia.getMaximumIterations() << std::endl;
 
     // Align the clouds
     pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    std::cout << "SAC-IA Starting ... " << std::endl;
     start = clock();
     sac_ia.align(*aligned_cloud);
     end = clock();
@@ -144,42 +124,17 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr pose_estimate_SACIA(pcl::PointCloud<pcl::Poi
     if (sac_ia.hasConverged())
     {
         std::cout << "SAC-IA converged with a score of " << sac_ia.getFitnessScore() << std::endl;
-        std::cout << "Transformation matrix:\n" << sac_ia.getFinalTransformation() << std::endl;
-        //print how many iterations it took to converge
+        // std::cout << "Transformation matrix:\n" << sac_ia.getFinalTransformation() << std::endl;
+        source_cloud->clear();
+        *source_cloud = *aligned_cloud;
 
-        // // Visualize the aligned cloud*
-        // pcl::visualization::PCLVisualizer viewer("SAC-IA Result");
-        // viewer.addPointCloud(aligned_cloud, "Aligned");
-
-        // // Use the transformation matrix to transform the target cloud
-        // // pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-        // // pcl::transformPointCloud(*target_cloud, *transformed_cloud, sac_ia.getFinalTransformation());
-
-        // // viewer.addPointCloud(transformed_cloud, "Transformed");
-        // // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "Transformed");
-        // // viewer.addPointCloud(target_cloud, "Target");
-        // // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "Target");
-
-        // viewer.addPointCloud(source_cloud, "Source");
-        // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "Source");
-        // viewer.setBackgroundColor(0.0, 0.0, 0.0);
-        // // Display global reference frame
-        // viewer.addCoordinateSystem(50.0);
-
-        // while (!viewer.wasStopped())
-        // {
-        //     viewer.spinOnce();
-        // }
-        // // Save the target cloud as a PLY file
-        // pcl::io::savePLYFile("owl_aligned.ply", *aligned_cloud);
-        // pcl::io::savePLYFile("owl_target.ply", *target_cloud);
+        return sac_ia.getFinalTransformation();
     }
     else
     {
         std::cerr << "SAC-IA did not converge" << std::endl;
+        return Eigen::Matrix4f::Identity();
     }
-
-    return aligned_cloud;
 }  
 
 // write a function that takes in a pointcloud and changes its coordinate frame to be at the centroid pf the pointcloud
@@ -199,7 +154,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr change_coordinate_frame(pcl::PointCloud<pcl:
     pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::transformPointCloud(*cloud, *transformed_cloud, transform);
 
-    std::cout << "Brought Pointcloud to centroid ..." << std::endl;
+    std::cout << "Aligned Coordinate Frames ..." << std::endl;
     return transformed_cloud;
 }
 
@@ -212,7 +167,7 @@ int main(int argc, char** argv)
 
     pcl::io::loadPLYFile("owl_sampled.ply", *target_cloud);        // Base File
     pcl::io::loadPLYFile("owl_scan_1.ply", *source_cloud);   // Scan File
-    std::cout << "Loaded " << std::endl;
+    std::cout << "Initial: Loaded " << std::endl;
 
     // // Create a random transformation matrix and apply it to the target cloud
     // Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
@@ -236,7 +191,7 @@ int main(int argc, char** argv)
         source_cloud->points[i].y *= magnification_factor;
         source_cloud->points[i].z *= magnification_factor;
     }
-    std::cout << "Magnified " << std::endl;
+    std::cout << "Initial: Magnified " << std::endl;
 
     // ----------------------Downsample the target cloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_target_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -245,7 +200,7 @@ int main(int argc, char** argv)
     voxel_grid.setLeafSize(1, 1, 1);
     voxel_grid.filter(*downsampled_target_cloud);
     *source_cloud = *downsampled_target_cloud;
-    std::cout << "Downsampled " << std::endl;
+    std::cout << "Initial: Downsampled " << std::endl;
 
     // Remove outliers from the target cloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_target_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -255,17 +210,54 @@ int main(int argc, char** argv)
     sor.setStddevMulThresh(1.0);
     sor.filter(*filtered_target_cloud);
     *source_cloud = *filtered_target_cloud;
-    std::cout << "Filtered " << std::endl;
+    std::cout << "Initial: Filtered " << std::endl;
+
+    // Make an independent copy of the source cloud which is not linked to the source cloud anymore
+    pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud_copy(new pcl::PointCloud<pcl::PointXYZ>);
+    *source_cloud_copy = *source_cloud;
 
     // Change the coordinate frame of the target cloud to be at the origin
     pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_target_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     transformed_target_cloud = change_coordinate_frame(source_cloud);
     *source_cloud = *transformed_target_cloud;
 
-    // Call the Pose Estimate function
-    // pose_estimate_ICP(source_cloud, target_cloud);
-    source_cloud = pose_estimate_SACIA(source_cloud, target_cloud); 
-    pose_estimate_ICP(source_cloud, target_cloud);
 
+    // Call the Pose Estimate function which uses SAC IA
+    Eigen::Matrix4f transform_1 = pose_estimate_SACIA(source_cloud, target_cloud);  
+    Eigen::Matrix4f transform_2 = pose_estimate_ICP(source_cloud, target_cloud);
+
+    std::cout << "\nBeginning Processing of Transforms... \n" << std::endl;
+    // Transform 1 given mapping from initial to mid and Tranbsform 2 given mapping from mid to final. Find the mapping from initial to final
+    Eigen::Matrix4f transform_3 = transform_2 * transform_1;
+
+    // Transform 3 is the complete transformation matrix. Extract the rotation part from it
+    Eigen::Matrix3f rotation_matrix = transform_3.block<3, 3>(0, 0);
+    Eigen::Quaternionf quaternion(rotation_matrix);
+
+    // Convert the rotation matrix to roll, pitch and yaw in degrees
+    float roll = atan2(rotation_matrix(2, 1), rotation_matrix(2, 2)) * 180 / M_PI;
+    float pitch = atan2(-rotation_matrix(2, 0), sqrt(rotation_matrix(2, 1) * rotation_matrix(2, 1) + rotation_matrix(2, 2) * rotation_matrix(2, 2))) * 180 / M_PI;
+    float yaw = atan2(rotation_matrix(1, 0), rotation_matrix(0, 0)) * 180 / M_PI;
+    std::cout << "Roll : " << roll << std::endl;
+    std::cout << "Pitch : " << pitch << std::endl;
+    std::cout << "Yaw : " << yaw << std::endl;
+
+    // Visualize the aligned cloud
+    pcl::visualization::PCLVisualizer viewer("SAC IA Result");
+    viewer.addPointCloud(target_cloud, "Target Cloud");
+    viewer.addPointCloud(source_cloud, "Final Source Cloud");
+    viewer.addPointCloud(source_cloud_copy, "Initial Source Cloud");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "Target Cloud");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "Final Source Cloud");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 1, "Initial Source Cloud");
+    viewer.setBackgroundColor(0.0, 0.0, 0.0);
+    viewer.addCoordinateSystem(25.0);
+
+    while (!viewer.wasStopped())
+    {
+        viewer.spinOnce();
+    }
+
+    std::cout << "\nPose Error in Yaw : "<< yaw << std::endl;
     return 0;
 }
