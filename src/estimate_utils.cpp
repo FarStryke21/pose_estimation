@@ -95,7 +95,7 @@ pcl::PointCloud<pcl::Normal>::Ptr computeNormals(pcl::PointCloud<pcl::PointXYZ>:
     ne.setInputCloud(cloud);
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
     ne.setSearchMethod(tree);
-    ne.setRadiusSearch(0.03);
+    ne.setRadiusSearch(5);
     ne.compute(*normals);
     return normals;
 }
@@ -124,13 +124,14 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr change_coordinate_frame(pcl::PointCloud<pcl:
 // Function to compute the FPFH features of the point cloud where just the pointcloud is given, compute normals inside the function
 pcl::PointCloud<pcl::FPFHSignature33>::Ptr computeFPFHFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 {
+
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs(new pcl::PointCloud<pcl::FPFHSignature33>());
     pcl::FPFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::FPFHSignature33> fpfh;
     fpfh.setInputCloud(cloud);
     fpfh.setInputNormals(computeNormals(cloud));
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
     fpfh.setSearchMethod(tree);
-    fpfh.setRadiusSearch(0.05);
+    fpfh.setRadiusSearch(5);
     fpfh.compute(*fpfhs);
     return fpfhs;
 }
@@ -166,25 +167,71 @@ pcl::PointCloud<pcl::SHOT352>::Ptr computeSHOTFeatures(pcl::PointCloud<pcl::Poin
 // Function to compute the transformation between the two point clouds
 Eigen::Matrix4f computeTransformation_ICP(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2)
 {
+    std::cout << "\nICP Starting ... " << std::endl;
+    clock_t start, end;
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     icp.setInputSource(cloud1);
     icp.setInputTarget(cloud2);
+
+    icp.setTransformationEpsilon(1e-8);
+
     pcl::PointCloud<pcl::PointXYZ> Final;
+    start = clock();
     icp.align(Final);
-    return icp.getFinalTransformation();
+    end = clock();
+    std::cout << "Time required : " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
+
+    if (icp.hasConverged())
+    {
+        std::cout << "ICP converged with a score of " << icp.getFitnessScore() << std::endl;
+        // std::cout << "Transformation matrix:\n" << icp.getFinalTransformation() << std::endl;
+        return icp.getFinalTransformation();
+    }
+    else
+    {
+        std::cerr << "ICP did not converge" << std::endl;
+        return Eigen::Matrix4f::Identity();
+    }
 }
 
 // Function to compute the transformation between the two point clouds using RANSAC
 Eigen::Matrix4f computeTransformation_SACIA(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2)
 {
+    std::cout << "\nSAC-IA Starting ... " << std::endl;
+    clock_t start, end;
+
     pcl::SampleConsensusInitialAlignment<pcl::PointXYZ, pcl::PointXYZ, pcl::FPFHSignature33> sac_ia;
     sac_ia.setInputSource(cloud1);
     sac_ia.setSourceFeatures(computeFPFHFeatures(cloud1));
     sac_ia.setInputTarget(cloud2);
     sac_ia.setTargetFeatures(computeFPFHFeatures(cloud2));
-    pcl::PointCloud<pcl::PointXYZ> Final;
-    sac_ia.align(Final);
-    return sac_ia.getFinalTransformation();
+
+    // sac_ia.setMaximumIterations(500); // Adjust as needed
+    // sac_ia.setDistanceThreshold(0.02); // Adjust as needed
+    // sac_ia.setMaxCorrespondenceDistance(1000.0);
+    // sac_ia.setMinSampleDistance (0.5);
+    
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr aligned_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    start = clock();
+    sac_ia.align(*aligned_cloud);
+    end = clock();
+    std::cout << "Time required : " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
+
+    if (sac_ia.hasConverged())
+    {
+        std::cout << "SAC-IA converged with a score of " << sac_ia.getFitnessScore() << std::endl;
+        // std::cout << "Transformation matrix:\n" << sac_ia.getFinalTransformation() << std::endl;
+        cloud1->clear();
+        *cloud1 = *aligned_cloud;
+
+        return sac_ia.getFinalTransformation();
+    }
+    else
+    {
+        std::cerr << "SAC-IA did not converge" << std::endl;
+        return Eigen::Matrix4f::Identity();
+    }
 }
 
 // Function to visualize the point clouds received in a list
