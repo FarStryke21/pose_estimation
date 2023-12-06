@@ -114,8 +114,8 @@ add_definitions(${PCL_DEFINITIONS})
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES pose_estimation
+ INCLUDE_DIRS include
+ LIBRARIES pose_estimation
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
 )
@@ -130,6 +130,8 @@ include_directories(
 include
   ${catkin_INCLUDE_DIRS}
 )
+
+# include_directories("inc")
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -216,6 +218,11 @@ include
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-add_executable(pose_estimate src/pose_estimate.cpp)
-add_dependencies(pose_estimate ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(pose_estimate  ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+# Add the utils library
+add_library(estimate_utils src/estimate_utils.cpp )
+# add_dependencies(utils ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(utils  ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(pose_estimate src/pose_estimate.cpp src/estimate_utils.cpp) 
+# add_dependencies(pose_estimate ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} estimate_utils)
+target_link_libraries(pose_estimate  ${catkin_LIBRARIES} ${PCL_LIBRARIES} estimate_utils)
