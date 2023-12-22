@@ -12,6 +12,7 @@
 #include <pcl/features/fpfh.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/shot.h>
+#include <pcl/features/principal_curvatures.h>
 // #include "estimate_utils.h"
 
 // Function to load the point cloud from the file
@@ -150,6 +151,19 @@ pcl::PointCloud<pcl::SHOT352>::Ptr computeSHOTFeatures(pcl::PointCloud<pcl::Poin
     return shots;
 }
 
+// Function to compute the Features based on Principal Curvature of the point cloud where just the pointcloud is given
+pcl::PointCloud<pcl::PrincipalCurvatures>::Ptr computePrincipalCurvatureFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+{
+    pcl::PointCloud<pcl::PrincipalCurvatures>::Ptr principal_curvatures(new pcl::PointCloud<pcl::PrincipalCurvatures>());
+    pcl::PrincipalCurvaturesEstimation<pcl::PointXYZ, pcl::Normal, pcl::PrincipalCurvatures> principal_curvature;
+    principal_curvature.setInputCloud(cloud);
+    principal_curvature.setInputNormals(computeNormals(cloud));
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
+    principal_curvature.setSearchMethod(tree);
+    principal_curvature.setRadiusSearch(5);
+    principal_curvature.compute(*principal_curvatures);
+    return principal_curvatures;
+}
 //Function to compute USC features of the point cloud where just the pointcloud is given, compute normals inside the function
 // pcl::PointCloud<pcl::UniqueShapeContext1960>::Ptr computeUSCFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 // {
@@ -200,11 +214,11 @@ Eigen::Matrix4f computeTransformation_SACIA(pcl::PointCloud<pcl::PointXYZ>::Ptr 
     std::cout << "\nSAC-IA Starting ... " << std::endl;
     clock_t start, end;
 
-    pcl::SampleConsensusInitialAlignment<pcl::PointXYZ, pcl::PointXYZ, pcl::FPFHSignature33> sac_ia;
+    pcl::SampleConsensusInitialAlignment<pcl::PointXYZ, pcl::PointXYZ, pcl::PrincipalCurvatures> sac_ia;
     sac_ia.setInputSource(cloud1);
-    sac_ia.setSourceFeatures(computeFPFHFeatures(cloud1));
+    sac_ia.setSourceFeatures(computePrincipalCurvatureFeatures(cloud1));
     sac_ia.setInputTarget(cloud2);
-    sac_ia.setTargetFeatures(computeFPFHFeatures(cloud2));
+    sac_ia.setTargetFeatures(computePrincipalCurvatureFeatures(cloud2));
 
     // sac_ia.setMaximumIterations(500); // Adjust as needed
     // sac_ia.setDistanceThreshold(0.02); // Adjust as needed

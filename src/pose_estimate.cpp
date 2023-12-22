@@ -22,11 +22,11 @@ int main(int argc, char** argv)
 
     // Use the load point cloud function from utils.h
     target_cloud = loadPointCloud("data/owl_sampled.ply");
-    source_cloud = loadPointCloud("data/owl_scan_1.ply");
+    source_cloud = loadPointCloud("data/owl_target.ply");
     
-    scalePointCloud(source_cloud, 1000.0);
-    downsamplePointCloud(source_cloud);
-    removeOutliers(source_cloud);
+    // scalePointCloud(source_cloud, 1000.0);
+    // downsamplePointCloud(source_cloud);
+    // removeOutliers(source_cloud);
 
     // Make an independent copy of the source cloud which is not linked to the source cloud anymore
     pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud_copy(new pcl::PointCloud<pcl::PointXYZ>);

@@ -224,5 +224,8 @@ add_library(estimate_utils src/estimate_utils.cpp )
 # target_link_libraries(utils  ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(pose_estimate src/pose_estimate.cpp src/estimate_utils.cpp) 
-# add_dependencies(pose_estimate ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} estimate_utils)
 target_link_libraries(pose_estimate  ${catkin_LIBRARIES} ${PCL_LIBRARIES} estimate_utils)
+
+add_executable(feature_descriptor src/feature_descriptor.cpp src/estimate_utils.cpp)
+target_link_libraries(feature_descriptor  ${catkin_LIBRARIES} ${PCL_LIBRARIES} estimate_utils)
+
