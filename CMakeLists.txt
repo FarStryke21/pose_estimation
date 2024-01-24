@@ -229,3 +229,6 @@ target_link_libraries(pose_estimate  ${catkin_LIBRARIES} ${PCL_LIBRARIES} estima
 add_executable(feature_descriptor src/feature_descriptor.cpp src/estimate_utils.cpp)
 target_link_libraries(feature_descriptor  ${catkin_LIBRARIES} ${PCL_LIBRARIES} estimate_utils)
 
+add_executable(nicp src/nicp.cpp src/estimate_utils.cpp) 
+target_link_libraries(nicp ${catkin_LIBRARIES} ${PCL_LIBRARIES} estimate_utils)
+

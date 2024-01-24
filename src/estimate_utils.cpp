@@ -125,7 +125,6 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr change_coordinate_frame(pcl::PointCloud<pcl:
 // Function to compute the FPFH features of the point cloud where just the pointcloud is given, compute normals inside the function
 pcl::PointCloud<pcl::FPFHSignature33>::Ptr computeFPFHFeatures(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 {
-
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs(new pcl::PointCloud<pcl::FPFHSignature33>());
     pcl::FPFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::FPFHSignature33> fpfh;
     fpfh.setInputCloud(cloud);
@@ -211,14 +210,16 @@ Eigen::Matrix4f computeTransformation_ICP(pcl::PointCloud<pcl::PointXYZ>::Ptr cl
 // Function to compute the transformation between the two point clouds using RANSAC
 Eigen::Matrix4f computeTransformation_SACIA(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2)
 {
+    // Makes use of FPFH signatures. To change, update the SACIA definition and the computeFeature functions
+    
     std::cout << "\nSAC-IA Starting ... " << std::endl;
     clock_t start, end;
 
-    pcl::SampleConsensusInitialAlignment<pcl::PointXYZ, pcl::PointXYZ, pcl::PrincipalCurvatures> sac_ia;
+    pcl::SampleConsensusInitialAlignment<pcl::PointXYZ, pcl::PointXYZ, pcl::FPFHSignature33> sac_ia;
     sac_ia.setInputSource(cloud1);
-    sac_ia.setSourceFeatures(computePrincipalCurvatureFeatures(cloud1));
+    sac_ia.setSourceFeatures(computeFPFHFeatures(cloud1));
     sac_ia.setInputTarget(cloud2);
-    sac_ia.setTargetFeatures(computePrincipalCurvatureFeatures(cloud2));
+    sac_ia.setTargetFeatures(computeFPFHFeatures(cloud2));
 
     // sac_ia.setMaximumIterations(500); // Adjust as needed
     // sac_ia.setDistanceThreshold(0.02); // Adjust as needed
